@@ -625,10 +625,10 @@ export function Dashboard({
   children,
 }: DashboardProps) {
   // ── Enrichment data (streamed in from Phase 2) ──
-  const [_enrichedCandidates, setEnrichedCandidates] = useState<Candidate[] | null>(null);
-  const [_enrichedCosts, setEnrichedCosts] = useState<WarehouseCost[] | null>(null);
-  const [_enrichmentLoaded, setEnrichmentLoaded] = useState(false);
-  const [_enrichmentHealth, setEnrichmentHealth] = useState<DataSourceHealth[]>([]);
+  const [enrichedCandidates, setEnrichedCandidates] = useState<Candidate[] | null>(null);
+  const [enrichedCosts, setEnrichedCosts] = useState<WarehouseCost[] | null>(null);
+  const [, setEnrichmentLoaded] = useState(false);
+  const [enrichmentHealth, setEnrichmentHealth] = useState<DataSourceHealth[]>([]);
 
   // Watch for streamed server data via MutationObserver (replaces polling)
   useEffect(() => {
@@ -708,11 +708,12 @@ export function Dashboard({
   const allHealth: DataSourceHealth[] = useMemo(() => {
     const map = new Map<string, DataSourceHealth>();
     for (const h of initialHealth) map.set(h.name, h);
+    for (const h of enrichmentHealth) map.set(h.name, h);
     map.delete("warehouse_events");
     return [...map.values()];
-  }, [initialHealth]);
+  }, [initialHealth, enrichmentHealth]);
 
-  const warehouseCosts = initialCosts;
+  const warehouseCosts = enrichedCosts ?? initialCosts;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -888,7 +889,7 @@ export function Dashboard({
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
-  const candidates = initialCandidates;
+  const candidates = enrichedCandidates ?? initialCandidates;
   const totalQueries = initialTotalQueries;
 
   // Total dollar cost (pre-computed in SQL from billing.usage JOIN list_prices)
@@ -1224,7 +1225,7 @@ export function Dashboard({
     } else {
       params.set("time", timePreset);
     }
-    if (warehouseId && warehouseId !== "unknown") params.set("warehouse", warehouseId);
+    if (warehouseId) params.set("warehouse", warehouseId);
     if (autoAnalyse) params.set("action", "analyse");
     return `/queries/${fingerprint}?${params.toString()}`;
   }
@@ -2664,7 +2665,6 @@ export function Dashboard({
           }
           onSetAction={setAction}
           onClearAction={clearAction}
-          buildDetailHref={buildQueryDetailHref}
         />
 
         {/* Cost data now loads with the page (no streaming phase) */}
